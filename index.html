@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Builder</title>
+    <!-- 1. Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Load html2pdf.js for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <!-- 3. Load Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- 4. Configure Tailwind & Fonts -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-dark': '#0A234E', // Dark blue from sidebar
+                        'brand-accent': '#E01A8C', // Magenta/pink from buttons
+                        'brand-accent-hover': '#C01778',
+                        'brand-secondary': '#3B82F6', // Standard blue for links/secondary
+                        'brand-highlight': '#B8E986', // Light green for resume highlights
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    minHeight: {
+                        'a4': '297mm',
+                    },
+                    width: {
+                        'a4': '210mm',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- 5. Custom Styles (including resume templates) -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', 'sans-serif';
+            background-color: #f8f9fa; /* Light gray background */
+        }
+        
+        /* --- Wizard Sidebar --- */
+        #wizard-sidebar .step-item.active {
+            background-color: #1D3A6D;
+        }
+        #wizard-sidebar .step-item.active .step-circle {
+            background-color: white;
+            color: #0A234E;
+            font-weight: 600;
+        }
+        #wizard-sidebar .step-item.completed .step-circle {
+            background-color: #34D399; /* Green check */
+            color: white;
+        }
+        
+        /* --- Form Inputs --- */
+        .form-input {
+            @apply w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-secondary focus:border-transparent;
+        }
+        .form-label {
+            @apply block text-sm font-medium text-gray-700 mb-1;
+        }
+        
+        /* --- Buttons --- */
+        .btn-primary {
+            @apply bg-brand-accent text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-brand-accent-hover transition-all duration-300 disabled:opacity-50;
+        }
+        .btn-secondary {
+            @apply bg-white text-brand-secondary font-semibold py-3 px-6 rounded-lg shadow-md border border-brand-secondary hover:bg-gray-50 transition-all duration-300;
+        }
+        .btn-link {
+            @apply text-brand-secondary font-medium hover:underline;
+        }
+        .btn-icon-plus {
+            @apply w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-200 transition;
+        }
+
+        /* --- Resume Preview Paper --- */
+        #resume-preview-content {
+            background: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            color: #1a202c; /* Default text color */
+        }
+        
+        /* --- Template 1: "Classic" --- */
+        .template-classic {
+            @apply p-12;
+            font-family: 'Georgia', serif;
+        }
+        .template-classic .resume-name {
+            @apply text-4xl font-bold text-center border-b-2 border-gray-300 pb-4;
+        }
+        .template-classic .resume-contact {
+            @apply text-sm text-center py-3 text-gray-700;
+        }
+        .template-classic .resume-section-title {
+            @apply text-xl font-bold text-brand-dark mt-6 mb-3 border-b border-gray-200 pb-1;
+        }
+        .template-classic .resume-summary-content {
+            @apply text-sm leading-relaxed;
+        }
+        .template-classic .resume-item-title {
+            @apply text-lg font-semibold;
+        }
+        .template-classic .resume-item-subtitle {
+            @apply text-sm font-medium text-gray-800 flex justify-between;
+        }
+        .template-classic .resume-item-date {
+            @apply text-sm text-gray-600 italic;
+        }
+        .template-classic .resume-item-description {
+            @apply text-sm text-gray-700 mt-2 pl-5;
+        }
+        .template-classic .resume-item-description li {
+            @apply list-disc mb-1;
+        }
+        .template-classic .resume-skills-list {
+            @apply text-sm text-gray-700;
+        }
+
+        /* --- Template 2: "Modern" (with sidebar) --- */
+        .template-modern {
+            @apply flex;
+            font-family: 'Inter', sans-serif;
+            min-height: 297mm;
+        }
+        .template-modern .resume-sidebar {
+            @apply w-1/3 bg-gray-800 text-white p-8;
+        }
+        .template-modern .resume-main {
+            @apply w-2/3 p-10;
+        }
+        .template-modern .resume-name {
+            @apply text-4xl font-bold text-brand-highlight mb-2;
+        }
+        .template-modern .resume-job-title {
+            @apply text-2xl text-white font-light tracking-wide;
+        }
+        .template-modern .resume-contact {
+            @apply text-sm mt-8;
+        }
+        .template-modern .resume-contact div {
+            @apply flex items-center mb-3;
+        }
+        .template-modern .resume-contact svg {
+            @apply w-4 h-4 mr-3 text-brand-highlight;
+        }
+        .template-modern .resume-section-title {
+            @apply text-lg font-bold text-gray-400 uppercase tracking-wider mt-10 mb-4;
+        }
+        .template-modern .resume-skills-list li, .template-modern .resume-links-list li {
+            @apply mb-2;
+        }
+        .template-modern .resume-section-title-main {
+            @apply text-2xl font-bold text-brand-dark mt-6 mb-4 border-b-2 border-brand-accent pb-2;
+        }
+        .template-modern .resume-summary-content {
+            @apply text-sm leading-relaxed text-gray-700;
+        }
+        .template-modern .resume-item-title {
+            @apply text-xl font-semibold text-gray-900;
+        }
+        .template-modern .resume-item-subtitle {
+            @apply text-md font-medium text-brand-secondary flex justify-between;
+        }
+        .template-modern .resume-item-date {
+            @apply text-sm text-gray-600 italic;
+        }
+        .template-modern .resume-item-description {
+            @apply text-sm text-gray-700 mt-2 pl-5;
+        }
+        .template-modern .resume-item-description li {
+            @apply list-disc mb-1;
+        }
+
+        /* Modal backdrop */
+        .modal-backdrop {
+            @apply fixed inset-0 bg-gray-900 bg-opacity-75 z-40 transition-opacity;
+        }
+        /* Modal panel */
+        .modal-panel {
+            @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+        }
+        .modal-content {
+            @apply bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- 
+      =====================================================
+      APP CONTAINER
+      =====================================================
+    -->
+    <div id="app-container" class="min-h-screen">
+
+        <!-- 
+          =====================================================
+          WIZARD VIEW (Initial Data Entry)
+          =====================================================
+        -->
+        <div id="wizard-view" class="flex flex-col md:flex-row min-h-screen">
+            
+            <!-- Wizard Sidebar -->
+            <nav id="wizard-sidebar" class="w-full md:w-80 bg-brand-dark text-white p-8 md:p-10 flex-shrink-0">
+                <h1 class="text-2xl font-bold mb-12">Resume Builder</h1>
+                
+                <ul class="space-y-2">
+                    <!-- Step 1: Heading -->
+                    <li id="step-nav-1" class="step-item active flex items-center p-3 rounded-lg cursor-pointer" onclick="app.navigateToStep(1)">
+                        <span class="step-circle w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-sm mr-4">1</span>
+                        <span class="step-name">Heading</span>
+                    </li>
+                    <!-- Step 2: Experience -->
+                    <li id="step-nav-2" class="step-item flex items-center p-3 rounded-lg cursor-pointer" onclick="app.navigateToStep(2)">
+                        <span class="step-circle w-8 h-8 rounded-full border-2 border-gray-400 text-gray-400 flex items-center justify-center text-sm mr-4">2</span>
+                        <span class="step-name">Experience</span>
+                    </li>
+                    <!-- Step 3: Education -->
+                    <li id="step-nav-3" class="step-item flex items-center p-3 rounded-lg cursor-pointer" onclick="app.navigateToStep(3)">
+                        <span class="step-circle w-8 h-8 rounded-full border-2 border-gray-400 text-gray-400 flex items-center justify-center text-sm mr-4">3</span>
+                        <span class="step-name">Education</span>
+                    </li>
+                    <!-- Step 4: Skills -->
+                    <li id="step-nav-4" class="step-item flex items-center p-3 rounded-lg cursor-pointer" onclick="app.navigateToStep(4)">
+                        <span class="step-circle w-8 h-8 rounded-full border-2 border-gray-400 text-gray-400 flex items-center justify-center text-sm mr-4">4</span>
+                        <span class="step-name">Skills</span>
+                    </li>
+                    <!-- Step 5: Summary -->
+                    <li id="step-nav-5" class="step-item flex items-center p-3 rounded-lg cursor-pointer" onclick="app.navigateToStep(5)">
+                        <span class="step-circle w-8 h-8 rounded-full border-2 border-gray-400 text-gray-400 flex items-center justify-center text-sm mr-4">5</span>
+                        <span class="step-name">Summary</span>
+                    </li>
+                    <!-- Step 6: Finalize -->
+                    <li id="step-nav-6" class="step-item flex items-center p-3 rounded-lg cursor-pointer" onclick="app.navigateToStep(6)">
+                        <span class="step-circle w-8 h-8 rounded-full border-2 border-gray-400 text-gray-400 flex items-center justify-center text-sm mr-4">6</span>
+                        <span class="step-name">Finalize</span>
+                    </li>
+                </ul>
+                
+                <div class="mt-12">
+                    <span class="text-sm text-gray-300">RESUME COMPLETENESS</span>
+                    <div class="w-full bg-gray-600 rounded-full h-2.5 mt-2">
+                        <div id="wizard-progress" class="bg-green-500 h-2.5 rounded-full" style="width: 10%"></div>
+                    </div>
+                </div>
+
+                <div class="mt-auto pt-10 text-sm text-gray-400">
+                    <a href="#" class="block hover:text-white">Terms & Conditions</a>
+                    <a href="#" class="block hover:text-white">Privacy Policy</a>
+                    <a href="#" class="block hover:text-white">Accessibility</a>
+                    <a href="#" class="block hover:text-white">Contact Us</a>
+                    <p class="mt-4">© 2025 Bold Limited. All rights reserved.</p>
+                </div>
+            </nav>
+            
+            <!-- Wizard Main Content -->
+            <main class="flex-1 p-6 md:p-12 overflow-y-auto">
+                <div class="max-w-3xl mx-auto">
+                
+                    <!-- Step 1: Personal Details / Heading -->
+                    <section id="step-1-personal" class="step-content">
+                        <h2 class="text-3xl font-bold text-gray-900">What's the best way for employers to contact you?</h2>
+                        <p class="text-gray-600 mt-2">We suggest including an email and phone number.</p>
+                        
+                        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- First Name -->
+                            <div>
+                                <label for="firstName" class="form-label">First Name *</label>
+                                <input type="text" id="firstName" class="form-input" oninput="app.updateState('personal.firstName', this.value)">
+                            </div>
+                            <!-- Surname -->
+                            <div>
+                                <label for="surname" class="form-label">Surname *</label>
+                                <input type="text" id="surname" class="form-input" oninput="app.updateState('personal.surname', this.value)">
+                            </div>
+                            <!-- City -->
+                            <div>
+                                <label for="city" class="form-label">City</label>
+                                <input type="text" id="city" class="form-input" oninput="app.updateState('personal.city', this.value)">
+                            </div>
+                            <!-- Country -->
+                            <div>
+                                <label for="country" class="form-label">Country</label>
+                                <input type="text" id="country" class="form-input" oninput="app.updateState('personal.country', this.value)">
+                            </div>
+                            <!-- Pin Code -->
+                            <div>
+                                <label for="pinCode" class="form-label">Pin Code</label>
+                                <input type="text" id="pinCode" class="form-input" oninput="app.updateState('personal.pinCode', this.value)">
+                            </div>
+                            <!-- Phone -->
+                            <div>
+                                <label for="phone" class="form-label">Phone</label>
+                                <input type="tel" id="phone" class="form-input" oninput="app.updateState('personal.phone', this.value)">
+                            </div>
+                            <!-- Email -->
+                            <div class="md:col-span-2">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" id="email" class="form-input" oninput="app.updateState('personal.email', this.value)">
+                            </div>
+                        </div>
+                        
+                        <!-- Additional Links -->
+                        <div class="mt-8">
+                            <label class="form-label">Add additional information to your resume (optional)</label>
+                            <div class="flex flex-wrap gap-4 mt-2">
+                                <button onclick="app.addLink('linkedin')" class="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-400 text-gray-700 rounded-lg hover:border-brand-secondary hover:text-brand-secondary">
+                                    <i data-feather="linkedin" class="w-4 h-4"></i> LinkedIn
+                                    <i data-feather="plus" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="app.addLink('website')" class="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-400 text-gray-700 rounded-lg hover:border-brand-secondary hover:text-brand-secondary">
+                                    <i data-feather="link" class="w-4 h-4"></i> Website
+                                    <i data-feather="plus" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <div id="links-container" class="mt-4 space-y-4">
+                                <!-- Dynamic links will be added here -->
+                            </div>
+                        </div>
+                        
+                        <!-- Navigation -->
+                        <div class="flex justify-end mt-12">
+                            <button class="btn-primary" onclick="app.nextStep()">Next: Experience</button>
+                        </div>
+                    </section>
+                    
+                    <!-- Step 2: Experience -->
+                    <section id="step-2-experience" class="step-content hidden">
+                        <h2 class="text-3xl font-bold text-gray-900">Tell us about your work experience</h2>
+                        <p class="text-gray-600 mt-2">Start with your most recent job. We'll give you AI suggestions for your job description.</p>
+                        
+                        <!-- Experience List -->
+                        <div id="experience-list" class="mt-8 space-y-4">
+                            <!-- Experience items will be rendered here -->
+                        </div>
+                        
+                        <!-- Add Experience Form (or button) -->
+                        <div id="experience-form-container" class="mt-6">
+                            <!-- Form is initially hidden -->
+                            <form id="experience-form" class="hidden p-6 bg-white border border-gray-200 rounded-lg shadow-sm space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label for="exp-title" class="form-label">Job Title *</label>
+                                        <input type="text" id="exp-title" class="form-input" placeholder="e.g. UI UX Designer">
+                                    </div>
+                                    <div>
+                                        <label for="exp-employer" class="form-label">Employer *</label>
+                                        <input type="text" id="exp-employer" class="form-input" placeholder="e.g. H&M">
+                                    </div>
+                                    <div>
+                                        <label for="exp-city" class="form-label">City</label>
+                                        <input type="text" id="exp-city" class="form-input">
+                                    </div>
+                                    <div>
+                                        <label for="exp-country" class="form-label">Country</label>
+                                        <input type="text" id="exp-country" class="form-input">
+                                    </div>
+                                    <!-- Dates -->
+                                    <div>
+                                        <label class="form-label">Start Date</label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="exp-start-month" class="form-input" placeholder="Month">
+                                            <input type="text" id="exp-start-year" class="form-input" placeholder="Year">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="form-label">End Date</label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="exp-end-month" class="form-input" placeholder="Month">
+                                            <input type="text" id="exp-end-year" class="form-input" placeholder="Year">
+                                        </div>
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" id="exp-current" class="rounded text-brand-secondary focus:ring-brand-secondary">
+                                            <span class="ml-2 text-sm text-gray-700">I currently work here</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <!-- Description -->
+                                <div>
+                                    <label for="exp-description" class="form-label">Job Description</label>
+                                    <textarea id="exp-description" rows="5" class="form-input" placeholder="Describe your responsibilities and achievements..."></textarea>
+                                </div>
+                                
+                                <div class="flex justify-end gap-4">
+                                    <button type="button" class="btn-secondary" onclick="app.toggleExperienceForm(false)">Cancel</button>
+                                    <button type="button" class="btn-primary" onclick="app.addExperience()">Save Experience</button>
+                                </div>
+                            </form>
+                            
+                            <button id="add-experience-btn" class="w-full text-left flex items-center gap-3 p-4 border-2 border-dashed border-gray-400 text-gray-700 rounded-lg hover:border-brand-secondary hover:text-brand-secondary" onclick="app.toggleExperienceForm(true)">
+                                <i data-feather="plus" class="w-5 h-5"></i>
+                                <span class="font-medium">Add another experience</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Navigation -->
+                        <div class="flex justify-between mt-12">
+                            <button class="btn-secondary" onclick="app.prevStep()">Back: Heading</button>
+                            <button class="btn-primary" onclick="app.nextStep()">Next: Education</button>
+                        </div>
+                    </section>
+                    
+                    <!-- Step 3: Education -->
+                    <section id="step-3-education" class="step-content hidden">
+                        <h2 class="text-3xl font-bold text-gray-900">Education Summary</h2>
+                        <p class="text-gray-600 mt-2">Enter your education experience so far, even if you are a current student or did not graduate.</p>
+                        
+                        <!-- Education List -->
+                        <div id="education-list" class="mt-8 space-y-4">
+                            <!-- Education items will be rendered here -->
+                        </div>
+                        
+                        <!-- Add Education Form (or button) -->
+                        <div id="education-form-container" class="mt-6">
+                            <!-- Form is initially hidden -->
+                            <form id="education-form" class="hidden p-6 bg-white border border-gray-200 rounded-lg shadow-sm space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label for="edu-school" class="form-label">School / University *</label>
+                                        <input type="text" id="edu-school" class="form-input">
+                                    </div>
+                                    <div>
+                                        <label for="edu-degree" class="form-label">Degree / Field of Study *</label>
+                                        <input type="text" id="edu-degree" class="form-input" placeholder="e.g. Associate of Science">
+                                    </div>
+                                    <div>
+                                        <label for="edu-city" class="form-label">City</label>
+                                        <input type="text" id="edu-city" class="form-input">
+                                    </div>
+                                    <div>
+                                        <label for="edu-country" class="form-label">Country</label>
+                                        <input type="text" id="edu-country" class="form-input">
+                                    </div>
+                                    <!-- Dates -->
+                                    <div>
+                                        <label class="form-label">Start Date</label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="edu-start-month" class="form-input" placeholder="Month">
+                                            <input type="text" id="edu-start-year" class="form-input" placeholder="Year">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="form-label">End Date / Expected</label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="edu-end-month" class="form-input" placeholder="Month">
+                                            <input type="text" id="edu-end-year" class="form-input" placeholder="Year">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex justify-end gap-4">
+                                    <button type="button" class="btn-secondary" onclick="app.toggleEducationForm(false)">Cancel</button>
+                                    <button type="button" class="btn-primary" onclick="app.addEducation()">Save Education</button>
+                                </div>
+                            </form>
+                            
+                            <button id="add-education-btn" class="w-full text-left flex items-center gap-3 p-4 border-2 border-dashed border-gray-400 text-gray-700 rounded-lg hover:border-brand-secondary hover:text-brand-secondary" onclick="app.toggleEducationForm(true)">
+                                <i data-feather="plus" class="w-5 h-5"></i>
+                                <span class="font-medium">Add another education</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Navigation -->
+                        <div class="flex justify-between mt-12">
+                            <button class="btn-secondary" onclick="app.prevStep()">Back: Experience</button>
+                            <button class="btn-primary" onclick="app.nextStep()">Next: Skills</button>
+                        </div>
+                    </section>
+                    
+                    <!-- Step 4: Skills -->
+                    <section id="step-4-skills" class="step-content hidden">
+                        <h2 class="text-3xl font-bold text-gray-900">What skills do you want to highlight?</h2>
+                        <p class="text-gray-600 mt-2">Add skills that are relevant to the job you are applying for.</p>
+                        
+                        <div class="mt-8">
+                            <label for="skill-input" class="form-label">Add a skill</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="skill-input" class="form-input" placeholder="e.g. Figma">
+                                <button class="btn-primary px-5" onclick="app.addSkill()">Add</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Skills List -->
+                        <div id="skills-list" class="mt-6 flex flex-wrap gap-3">
+                            <!-- Skill tags will be rendered here -->
+                        </div>
+                        
+                        <!-- Navigation -->
+                        <div class="flex justify-between mt-12">
+                            <button class="btn-secondary" onclick="app.prevStep()">Back: Education</button>
+                            <button class="btn-primary" onclick="app.nextStep()">Next: Summary</button>
+                        </div>
+                    </section>
+
+                    <!-- Step 5: Summary -->
+                    <section id="step-5-summary" class="step-content hidden">
+                        <h2 class="text-3xl font-bold text-gray-900">Write a professional summary</h2>
+                        <p class="text-gray-600 mt-2">Briefly describe your value and what you bring to the table. This is your elevator pitch.</p>
+                        
+                        <div class="mt-8">
+                            <label for="summary-textarea" class="form-label">Professional Summary</label>
+                            <textarea id="summary-textarea" rows="8" class="form-input" placeholder="e.g. Accomplished UI/UX Designer with 5+ years of experience in creating user-centric and intuitive digital products..." oninput="app.updateState('summary', this.value)"></textarea>
+                        </div>
+                        
+                        <!-- Navigation -->
+                        <div class="flex justify-between mt-12">
+                            <button class="btn-secondary" onclick="app.prevStep()">Back: Skills</button>
+                            <button class="btn-primary" onclick="app.nextStep()">Finalize Resume</button>
+                        </div>
+                    </section>
+
+                    <!-- Step 6: Finalize (Redirects to Editor) -->
+                    <section id="step-6-finalize" class="step-content hidden">
+                        <h2 class="text-3xl font-bold text-gray-900">You're all set!</h2>
+                        <p class="text-gray-600 mt-2">Let's review your resume, pick a template, and download it.</p>
+                        
+                        <div class="mt-8">
+                            <button class="btn-primary btn-lg w-full text-lg" onclick="app.showEditor()">
+                                Go to Final Editor
+                            </button>
+                        </div>
+                        
+                        <!-- Navigation -->
+                        <div class="flex justify-start mt-12">
+                            <button class="btn-secondary" onclick="app.prevStep()">Back: Summary</button>
+                        </div>
+                    </section>
+
+                </div>
+            </main>
+            
+            <!-- Wizard Preview Pane (like in screenshot 055309.png) -->
+            <aside class="w-full md:w-96 bg-white p-6 border-l border-gray-200 flex-shrink-0 hidden lg:block">
+                <div class="sticky top-6">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-gray-800">Template Recommendation</h4>
+                        <p class="text-sm text-gray-600 mt-1">Here's a template for you to start with. You can change this later.</p>
+                    </div>
+                    
+                    <!-- Mini Resume Preview -->
+                    <div class="mt-4 border border-gray-300 rounded-lg shadow-lg overflow-hidden">
+                        <div class="p-6 bg-white">
+                            <div class="h-4 w-1/3 bg-gray-300 rounded mx-auto"></div>
+                            <div class="h-3 w-2/3 bg-gray-200 rounded mx-auto mt-2"></div>
+                            
+                            <div class="h-3 w-1/4 bg-brand-highlight rounded mt-6"></div>
+                            <div class="h-2 w-full bg-gray-200 rounded mt-2"></div>
+                            <div class="h-2 w-2/3 bg-gray-200 rounded mt-1"></div>
+
+                            <div class="h-3 w-1/4 bg-brand-highlight rounded mt-6"></div>
+                            <div class="h-3 w-1/2 bg-gray-300 rounded mt-2"></div>
+                            <div class="h-2 w-full bg-gray-200 rounded mt-2"></div>
+                            <div class="h-2 w-full bg-gray-200 rounded mt-1"></div>
+                            <div class="h-3 w-1/2 bg-gray-300 rounded mt-4"></div>
+                            <div class="h-2 w-full bg-gray-200 rounded mt-2"></div>
+                            <div class="h-2 w-full bg-gray-200 rounded mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+            
+        </div>
+
+        <!-- 
+          =====================================================
+          EDITOR VIEW (Finalize & Download)
+          =====================================================
+        -->
+        <div id="editor-view" class="hidden min-h-screen">
+            <!-- Editor Top Bar -->
+            <header class="bg-white border-b border-gray-200 p-4 flex justify-between items-center fixed top-0 left-0 w-full z-20">
+                <div class="flex items-center gap-4">
+                    <button class="text-brand-secondary hover:text-brand-dark" onclick="app.showWizard()">
+                        <i data-feather="chevron-left" class="w-6 h-6"></i>
+                    </button>
+                    <input type="text" value="My_Resume" class="text-lg font-semibold rounded-lg p-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-secondary">
+                    <button class="text-brand-secondary hover:text-brand-dark">
+                        <i data-feather="edit-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button class="btn-secondary" onclick="app.showDownloadModal()">
+                        <i data-feather="download" class="w-4 h-4 mr-2"></i>
+                        Download
+                    </button>
+                    <button class="btn-primary" onclick="app.showDownloadModal()">Finish</button>
+                </div>
+            </header>
+            
+            <div class="flex" style="padding-top: 69px;"> <!-- Offset for fixed header -->
+                <!-- Editor Sidebar -->
+                <nav class="w-64 bg-white border-r border-gray-200 p-6 space-y-4 fixed h-full">
+                    <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Tools</h3>
+                    
+                    <button id="tool-templates" class="w-full flex items-center gap-3 p-3 rounded-lg text-brand-secondary bg-blue-50" onclick="app.showEditorPanel('templates')">
+                        <i data-feather="layout" class="w-5 h-5"></i>
+                        <span class="font-medium">Templates</span>
+                    </button>
+                    
+                    <button id="tool-sections" class="w-full flex items-center gap-3 p-3 rounded-lg text-gray-700 hover:bg-gray-100" onclick="app.showEditorPanel('sections')">
+                        <i data-feather="plus-square" class="w-5 h-5"></i>
+                        <span class="font-medium">Add Section</span>
+                    </button>
+
+                    <!-- Add more tools as needed -->
+                </nav>
+                
+                <!-- Editor Content (Tools + Preview) -->
+                <div class="flex-1 ml-64 flex">
+                    <!-- Tool Panels -->
+                    <aside class="w-96 bg-white border-r border-gray-200 p-6 overflow-y-auto" style="height: calc(100vh - 69px);">
+                        <!-- Templates Panel -->
+                        <div id="panel-templates">
+                            <h4 class="text-xl font-bold mb-4">Templates</h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="border-2 border-brand-secondary rounded-lg p-1" onclick="app.selectTemplate('template-classic')">
+                                    <img src="https://placehold.co/150x200/cccccc/333333?text=Classic" alt="Classic Template" class="w-full rounded-md cursor-pointer">
+                                </div>
+                                <div class="border-2 border-transparent hover:border-brand-secondary rounded-lg p-1" onclick="app.selectTemplate('template-modern')">
+                                    <img src="https://placehold.co/150x200/333333/ffffff?text=Modern" alt="Modern Template" class="w-full rounded-md cursor-pointer">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Add Section Panel -->
+                        <div id="panel-sections" class="hidden">
+                            <h4 class="text-xl font-bold mb-4">Add Section</h4>
+                            <p class="text-gray-600">This feature is in development. You can add more sections (like Hobbies, Certifications, etc.) from here.</p>
+                            <!-- List of addable sections would go here -->
+                        </div>
+                    </aside>
+                    
+                    <!-- Resume Preview -->
+                    <main class="flex-1 p-8 md:p-12 bg-gray-100 overflow-y-auto" style="height: calc(100vh - 69px);">
+                        <!-- This is the element that will be downloaded as PDF -->
+                        <div id="resume-preview-content" class="w-a4 min-h-a4 mx-auto template-classic">
+                            <!-- Resume content will be dynamically rendered here by app.renderResume() -->
+                        </div>
+                    </main>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 
+      =====================================================
+      MODALS
+      =====================================================
+    -->
+    
+    <!-- AI Keyword Suggestions Modal -->
+    <div id="keyword-modal" class="modal-panel hidden">
+        <div class="modal-backdrop" onclick="app.closeKeywordModal()"></div>
+        <div class="modal-content">
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-bold text-gray-900">Expert recommendations for <span id="keyword-job-title"></span></h3>
+                    <button onclick="app.closeKeywordModal()" class="text-gray-400 hover:text-gray-700">
+                        <i data-feather="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <p class="text-gray-600 mb-6">Personalized for your experience. You can edit this in the next step.</p>
+                
+                <ul id="keyword-list" class="space-y-4 max-h-60 overflow-y-auto pr-2">
+                    <!-- Keywords will be injected here -->
+                </ul>
+                
+                <div class="flex justify-end gap-4 mt-8">
+                    <button class="btn-secondary" onclick="app.closeKeywordModal()">No thanks</button>
+                    <button class="btn-primary" onclick="app.addRecommendations()">Add recommendations</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Download Modal -->
+    <div id="download-modal" class="modal-panel hidden">
+        <div class="modal-backdrop" onclick="app.closeDownloadModal()"></div>
+        <div class="modal-content max-w-md">
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-bold text-gray-900">Download resume as</h3>
+                    <button onclick="app.closeDownloadModal()" class="text-gray-400 hover:text-gray-700">
+                        <i data-feather="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-4 mt-6">
+                    <label class="flex items-center p-4 border border-gray-300 rounded-lg has-[:checked]:border-brand-secondary has-[:checked]:bg-blue-50">
+                        <input type="radio" name="download-format" value="pdf" class="text-brand-secondary focus:ring-brand-secondary" checked>
+                        <span class="ml-3 font-medium">Adobe PDF (.pdf)</span>
+                    </label>
+                    <label class="flex items-center p-4 border border-gray-300 rounded-lg has-[:checked]:border-brand-secondary has-[:checked]:bg-blue-50">
+                        <input type="radio" name="download-format" value="docx" class="text-brand-secondary focus:ring-brand-secondary">
+                        <span class="ml-3 font-medium">MS Word Document (.docx)</span>
+                    </label>
+                    <label class="flex items-center p-4 border border-gray-300 rounded-lg has-[:checked]:border-brand-secondary has-[:checked]:bg-blue-50">
+                        <input type="radio" name="download-format" value="txt" class="text-brand-secondary focus:ring-brand-secondary">
+                        <span class="ml-3 font-medium">Plain Text (.txt)</span>
+                    </label>
+                </div>
+                
+                <div class="mt-6">
+                    <label for="resume-name" class="form-label">Resume name</label>
+                    <input type="text" id="resume-name" class="form-input" value="My_Resume">
+                </div>
+                
+                <div class="flex justify-end gap-4 mt-8">
+                    <button class="btn-secondary" onclick="app.closeDownloadModal()">Cancel</button>
+                    <button class="btn-primary" onclick="app.downloadFile()">Download</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 
+      =====================================================
+      JAVASCRIPT APPLICATION
+      =====================================================
+    -->
+    <script>
+        // --- Mock AI Keyword Data ---
+        const mockKeywords = {
+            'ui ux designer': [
+                'Communicated with product managers and UX designers to translate project requirements and business objectives into polished user interfaces.',
+                'Improved and expanded project platforms using JavaScript to develop rich user interfaces.',
+                'Designed UIs within frontend web frameworks, exploiting associated templates and tools to shorten development times.',
+                'Worked with design teams, project managers and business analysts to create intuitive and easy-to-use software.',
+                'Collaborated with teammates to deliver valuable features meeting business and customer needs.',
+            ],
+            'software engineer': [
+                'Developed and maintained scalable web applications using React, Node.js, and PostgreSQL.',
+                'Wrote clean, efficient, and testable code, contributing to a 20% reduction in bug reports.',
+                'Participated in agile ceremonies, including sprint planning, daily stand-ups, and retrospectives.',
+                'Authored and maintained technical documentation for new features and APIs.',
+            ],
+            'product manager': [
+                'Led the entire product lifecycle from ideation and user research to launch and post-launch analysis.',
+                'Defined and prioritized product roadmaps based on market research, user feedback, and business goals.',
+                'Collaborated with cross-functional teams (engineering, design, marketing) to ensure successful product delivery.',
+                'Analyzed key product metrics (KPIs) to identify areas for improvement and drive product growth.',
+            ],
+            'manager': [
+                'Managed a team of 10 employees, providing coaching, mentorship, and performance reviews.',
+                'Developed and implemented strategic plans to achieve departmental goals and improve efficiency.',
+                'Oversaw project timelines, budgets, and resource allocation, ensuring projects were completed on time and within',
+                'Reported on team performance and project status to senior leadership.'
+            ]
+        };
+        
+        // --- Main Application Object ---
+        window.app = {
+            
+            // --- 1. STATE ---
+            state: {
+                currentStep: 1,
+                view: 'wizard', // 'wizard' or 'editor'
+                personal: {
+                    firstName: '',
+                    surname: '',
+                    city: '',
+                    country: '',
+                    pinCode: '',
+                    phone: '',
+                    email: '',
+                    links: {
+                        linkedin: '',
+                        website: ''
+                    }
+                },
+                experience: [], // Array of objects
+                education: [],  // Array of objects
+                skills: [],     // Array of strings
+                summary: '',
+                selectedTemplate: 'template-classic',
+                nextId: {
+                    exp: 1,
+                    edu: 1,
+                }
+            },
+            
+            // --- 2. INITIALIZATION ---
+            init() {
+                console.log('App initialized');
+                feather.replace(); // Initialize icons
+                this.renderWizardStep();
+                this.loadState(); // Load from localStorage if available
+                this.renderAll();
+            },
+
+            // --- 3. STATE MANAGEMENT ---
+            updateState(key, value) {
+                // Allows nested key updates, e.g., 'personal.firstName'
+                let keys = key.split('.');
+                let obj = this.state;
+                while (keys.length > 1) {
+                    obj = obj[keys.shift()];
+                }
+                obj[keys[0]] = value;
+                
+                this.saveState(); // Save to localStorage on every update
+                
+                // Re-render only what's necessary (e.g., resume preview)
+                if(this.state.view === 'editor') {
+                    this.renderResume();
+                }
+            },
+            
+            saveState() {
+                localStorage.setItem('aiResumeState', JSON.stringify(this.state));
+            },
+            
+            loadState() {
+                const savedState = localStorage.getItem('aiResumeState');
+                if (savedState) {
+                    this.state = JSON.parse(savedState);
+                    console.log('State loaded from localStorage');
+                }
+            },
+
+            // --- 4. VIEW & NAVIGATION ---
+            
+            /**
+             * Controls which wizard step is visible
+             */
+            renderWizardStep() {
+                // Hide all steps
+                document.querySelectorAll('.step-content').forEach(step => step.classList.add('hidden'));
+                
+                // Show current step
+                const currentStepEl = document.getElementById(`step-${this.state.currentStep}-${this.getStepName(this.state.currentStep)}`);
+                if (currentStepEl) {
+                    currentStepEl.classList.remove('hidden');
+                }
+                
+                // Update sidebar navigation
+                let completed = true;
+                document.querySelectorAll('#wizard-sidebar .step-item').forEach((navItem, index) => {
+                    const stepNum = index + 1;
+                    navItem.classList.remove('active', 'completed');
+                    const circle = navItem.querySelector('.step-circle');
+                    
+                    if (stepNum === this.state.currentStep) {
+                        navItem.classList.add('active');
+                        completed = false; // We are on this step, so it's not "completed" yet
+                    } else if (completed) {
+                        navItem.classList.add('completed');
+                        circle.innerHTML = '<i data-feather="check" class="w-5 h-5"></i>';
+                    } else {
+                        // Future step
+                        circle.innerHTML = stepNum;
+                    }
+                });
+                
+                // Update progress bar
+                const progress = (this.state.currentStep / 6) * 100;
+                document.getElementById('wizard-progress').style.width = `${progress}%`;
+                
+                feather.replace(); // Re-render icons (for checkmarks)
+            },
+            
+            getStepName(stepNum) {
+                const names = ['personal', 'experience', 'education', 'skills', 'summary', 'finalize'];
+                return names[stepNum - 1] || 'personal';
+            },
+
+            nextStep() {
+                if (this.state.currentStep < 6) {
+                    this.state.currentStep++;
+                    if (this.state.currentStep === 6) {
+                        // When reaching "Finalize", show editor immediately
+                        this.showEditor();
+                    } else {
+                        this.renderWizardStep();
+                    }
+                    this.saveState();
+                }
+            },
+
+            prevStep() {
+                if (this.state.currentStep > 1) {
+                    this.state.currentStep--;
+                    this.renderWizardStep();
+                    this.saveState();
+                }
+            },
+
+            navigateToStep(stepNum) {
+                // Only allow navigation if view is 'wizard'
+                if(this.state.view === 'wizard') {
+                    this.state.currentStep = stepNum;
+                    this.renderWizardStep();
+                    this.saveState();
+                } else {
+                    // If in editor, switch to wizard and navigate
+                    this.showWizard(stepNum);
+                }
+            },
+
+            showEditor() {
+                this.state.view = 'editor';
+                document.getElementById('wizard-view').classList.add('hidden');
+                document.getElementById('editor-view').classList.remove('hidden');
+                this.renderResume();
+                this.saveState();
+            },
+            
+            showWizard(stepNum = null) {
+                this.state.view = 'wizard';
+                if(stepNum) {
+                    this.state.currentStep = stepNum;
+                }
+                document.getElementById('editor-view').classList.add('hidden');
+                document.getElementById('wizard-view').classList.remove('hidden');
+                this.renderWizardStep();
+                this.saveState();
+            },
+
+            // --- 5. WIZARD STEP LOGIC ---
+
+            // --- Step 1: Personal / Heading ---
+            addLink(type) {
+                const container = document.getElementById('links-container');
+                if (document.getElementById(`link-input-${type}`)) return; // Already added
+
+                const placeholder = type === 'linkedin' ? 'https://linkedin.com/in/yourname' : 'https://yourportfolio.com';
+                const icon = type === 'linkedin' ? 'linkedin' : 'link';
+
+                const div = document.createElement('div');
+                div.id = `link-group-${type}`;
+                div.className = 'flex items-center gap-2';
+                div.innerHTML = `
+                    <i data-feather="${icon}" class="w-5 h-5 text-gray-500"></i>
+                    <input type="text" id="link-input-${type}" class="form-input flex-1" placeholder="${placeholder}" 
+                           value="${this.state.personal.links[type] || ''}"
+                           oninput="app.updateState('personal.links.${type}', this.value)">
+                    <button onclick="app.removeLink('${type}')" class="text-gray-400 hover:text-red-600">
+                        <i data-feather="trash-2" class="w-5 h-5"></i>
+                    </button>
+                `;
+                container.appendChild(div);
+                feather.replace();
+            },
+            
+            removeLink(type) {
+                document.getElementById(`link-group-${type}`).remove();
+                this.updateState(`personal.links.${type}`, '');
+            },
+            
+            renderLinks() {
+                Object.keys(this.state.personal.links).forEach(type => {
+                    if (this.state.personal.links[type]) {
+                        this.addLink(type);
+                    }
+                });
+            },
+
+            // --- Step 2: Experience ---
+            toggleExperienceForm(show) {
+                const form = document.getElementById('experience-form');
+                const button = document.getElementById('add-experience-btn');
+                if (show) {
+                    form.classList.remove('hidden');
+                    button.classList.add('hidden');
+                    // Reset form (optional)
+                    form.reset();
+                    // Clear any 'data-edit-id'
+                    form.removeAttribute('data-edit-id');
+                } else {
+                    form.classList.add('hidden');
+                    button.classList.remove('hidden');
+                }
+            },
+            
+            addExperience() {
+                const form = document.getElementById('experience-form');
+                const editId = form.getAttribute('data-edit-id');
+                
+                const jobTitle = document.getElementById('exp-title').value;
+                
+                const newExp = {
+                    id: editId ? parseInt(editId) : this.state.nextId.exp,
+                    title: jobTitle,
+                    employer: document.getElementById('exp-employer').value,
+                    city: document.getElementById('exp-city').value,
+                    country: document.getElementById('exp-country').value,
+                    startMonth: document.getElementById('exp-start-month').value,
+                    startYear: document.getElementById('exp-start-year').value,
+                    endMonth: document.getElementById('exp-end-month').value,
+                    endYear: document.getElementById('exp-end-year').value,
+                    current: document.getElementById('exp-current').checked,
+                    description: document.getElementById('exp-description').value,
+                };
+                
+                if (editId) {
+                    // Find and update existing
+                    this.state.experience = this.state.experience.map(exp => 
+                        exp.id === newExp.id ? newExp : exp
+                    );
+                } else {
+                    // Add new
+                    this.state.experience.push(newExp);
+                    this.state.nextId.exp++;
+                }
+
+                this.renderExperienceList();
+                this.toggleExperienceForm(false);
+                this.saveState();
+                
+                // --- AI SUGGESTION TRIGGER ---
+                // Only show modal for new jobs, not edits
+                if (!editId) {
+                    this.showKeywordModal(jobTitle, newExp.id);
+                }
+            },
+            
+            editExperience(id) {
+                const exp = this.state.experience.find(e => e.id === id);
+                if (!exp) return;
+                
+                this.toggleExperienceForm(true);
+                
+                document.getElementById('experience-form').setAttribute('data-edit-id', id);
+                document.getElementById('exp-title').value = exp.title;
+                document.getElementById('exp-employer').value = exp.employer;
+                document.getElementById('exp-city').value = exp.city;
+                document.getElementById('exp-country').value = exp.country;
+                document.getElementById('exp-start-month').value = exp.startMonth;
+                document.getElementById('exp-start-year').value = exp.startYear;
+                document.getElementById('exp-end-month').value = exp.endMonth;
+                document.getElementById('exp-end-year').value = exp.endYear;
+                document.getElementById('exp-current').checked = exp.current;
+                document.getElementById('exp-description').value = exp.description;
+            },
+            
+            deleteExperience(id) {
+                if (confirm('Are you sure you want to delete this experience?')) {
+                    this.state.experience = this.state.experience.filter(exp => exp.id !== id);
+                    this.renderExperienceList();
+                    this.saveState();
+                }
+            },
+            
+            renderExperienceList() {
+                const listEl = document.getElementById('experience-list');
+                listEl.innerHTML = ''; // Clear list
+                
+                if (this.state.experience.length === 0) {
+                    listEl.innerHTML = '<p class="text-gray-500 text-center p-4">No work experience added yet.</p>';
+                }
+                
+                this.state.experience.forEach(exp => {
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm';
+                    div.innerHTML = `
+                        <div>
+                            <h4 class="font-semibold text-lg">${exp.title}</h4>
+                            <p class="text-gray-600">${exp.employer}</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="app.editExperience(${exp.id})" class="text-gray-500 hover:text-brand-secondary">
+                                <i data-feather="edit" class="w-5 h-5"></i>
+                            </button>
+                            <button onclick="app.deleteExperience(${exp.id})" class="text-gray-500 hover:text-red-600">
+                                <i data-feather="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    `;
+                    listEl.appendChild(div);
+                });
+                feather.replace();
+            },
+
+            // --- Step 3: Education ---
+            toggleEducationForm(show) {
+                const form = document.getElementById('education-form');
+                const button = document.getElementById('add-education-btn');
+                if (show) {
+                    form.classList.remove('hidden');
+                    button.classList.add('hidden');
+                    form.reset();
+                    form.removeAttribute('data-edit-id');
+                } else {
+                    form.classList.add('hidden');
+                    button.classList.remove('hidden');
+                }
+            },
+
+            addEducation() {
+                const form = document.getElementById('education-form');
+                const editId = form.getAttribute('data-edit-id');
+                
+                const newEdu = {
+                    id: editId ? parseInt(editId) : this.state.nextId.edu,
+                    school: document.getElementById('edu-school').value,
+                    degree: document.getElementById('edu-degree').value,
+                    city: document.getElementById('edu-city').value,
+                    country: document.getElementById('edu-country').value,
+                    startMonth: document.getElementById('edu-start-month').value,
+                    startYear: document.getElementById('edu-start-year').value,
+                    endMonth: document.getElementById('edu-end-month').value,
+                    endYear: document.getElementById('edu-end-year').value,
+                };
+                
+                if (editId) {
+                    this.state.education = this.state.education.map(edu => 
+                        edu.id === newEdu.id ? newEdu : edu
+                    );
+                } else {
+                    this.state.education.push(newEdu);
+                    this.state.nextId.edu++;
+                }
+
+                this.renderEducationList();
+                this.toggleEducationForm(false);
+                this.saveState();
+            },
+            
+            editEducation(id) {
+                const edu = this.state.education.find(e => e.id === id);
+                if (!edu) return;
+                
+                this.toggleEducationForm(true);
+                
+                document.getElementById('education-form').setAttribute('data-edit-id', id);
+                document.getElementById('edu-school').value = edu.school;
+                document.getElementById('edu-degree').value = edu.degree;
+                document.getElementById('edu-city').value = edu.city;
+                document.getElementById('edu-country').value = edu.country;
+                document.getElementById('edu-start-month').value = edu.startMonth;
+                document.getElementById('edu-start-year').value = edu.startYear;
+                document.getElementById('edu-end-month').value = edu.endMonth;
+                document.getElementById('edu-end-year').value = edu.endYear;
+            },
+            
+            deleteEducation(id) {
+                if (confirm('Are you sure you want to delete this education entry?')) {
+                    this.state.education = this.state.education.filter(edu => edu.id !== id);
+                    this.renderEducationList();
+                    this.saveState();
+                }
+            },
+            
+            renderEducationList() {
+                const listEl = document.getElementById('education-list');
+                listEl.innerHTML = ''; // Clear list
+                
+                if (this.state.education.length === 0) {
+                    listEl.innerHTML = '<p class="text-gray-500 text-center p-4">No education added yet.</p>';
+                }
+                
+                this.state.education.forEach(edu => {
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm';
+                    div.innerHTML = `
+                        <div>
+                            <h4 class="font-semibold text-lg">${edu.degree}</h4>
+                            <p class="text-gray-600">${edu.school}</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="app.editEducation(${edu.id})" class="text-gray-500 hover:text-brand-secondary">
+                                <i data-feather="edit" class="w-5 h-5"></i>
+                            </button>
+                            <button onclick="app.deleteEducation(${edu.id})" class="text-gray-500 hover:text-red-600">
+                                <i data-feather="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    `;
+                    listEl.appendChild(div);
+                });
+                feather.replace();
+            },
+
+            // --- Step 4: Skills ---
+            addSkill() {
+                const input = document.getElementById('skill-input');
+                const skill = input.value.trim();
+                if (skill && !this.state.skills.includes(skill)) {
+                    this.state.skills.push(skill);
+                    this.renderSkills();
+                    this.saveState();
+                    input.value = '';
+                }
+            },
+            
+            removeSkill(skillToRemove) {
+                this.state.skills = this.state.skills.filter(skill => skill !== skillToRemove);
+                this.renderSkills();
+                this.saveState();
+            },
+            
+            renderSkills() {
+                const listEl = document.getElementById('skills-list');
+                listEl.innerHTML = '';
+                this.state.skills.forEach(skill => {
+                    const tag = document.createElement('span');
+                    tag.className = 'flex items-center gap-2 bg-blue-100 text-blue-800 text-sm font-medium px-4 py-2 rounded-full';
+                    tag.innerHTML = `
+                        ${skill}
+                        <button onclick="app.removeSkill('${skill}')" class="text-blue-600 hover:text-blue-800">
+                            <i data-feather="x" class="w-4 h-4"></i>
+                        </button>
+                    `;
+                    listEl.appendChild(tag);
+                });
+                feather.replace();
+            },
+            
+            // --- Step 5: Summary ---
+            renderSummary() {
+                document.getElementById('summary-textarea').value = this.state.summary;
+            },
+
+            // --- 6. AI KEYWORD MODAL ---
+            
+            showKeywordModal(jobTitle, experienceId) {
+                const keywords = mockKeywords[jobTitle.toLowerCase().trim()];
+                if (!keywords) {
+                    console.log('No keywords found for:', jobTitle);
+                    return; // No keywords found, don't show modal
+                }
+                
+                document.getElementById('keyword-job-title').textContent = jobTitle;
+                const listEl = document.getElementById('keyword-list');
+                listEl.innerHTML = ''; // Clear previous
+                
+                keywords.forEach((keyword, index) => {
+                    listEl.innerHTML += `
+                        <li class="flex items-start">
+                            <input id="keyword-check-${index}" type="checkbox" data-keyword="${keyword}" class="mt-1 h-5 w-5 rounded text-brand-secondary focus:ring-brand-secondary border-gray-300" checked>
+                            <label for="keyword-check-${index}" class="ml-3 text-sm text-gray-700">${keyword}</label>
+                        </li>
+                    `;
+                });
+                
+                // Store the experienceId to know where to add the keywords
+                document.getElementById('keyword-modal').setAttribute('data-experience-id', experienceId);
+                
+                document.getElementById('keyword-modal').classList.remove('hidden');
+            },
+            
+            closeKeywordModal() {
+                document.getElementById('keyword-modal').classList.add('hidden');
+            },
+            
+            addRecommendations() {
+                const experienceId = parseInt(document.getElementById('keyword-modal').getAttribute('data-experience-id'));
+                const exp = this.state.experience.find(e => e.id === experienceId);
+                if (!exp) return;
+
+                const selectedKeywords = [];
+                document.querySelectorAll('#keyword-list input[type="checkbox"]:checked').forEach(checkbox => {
+                    selectedKeywords.push(checkbox.getAttribute('data-keyword'));
+                });
+                
+                // Format as a bulleted list
+                const keywordsAsList = selectedKeywords.map(k => `<li>${k}</li>`).join('');
+                
+                // Prepend or append to existing description
+                if (exp.description) {
+                    exp.description = `${exp.description}\n<ul>${keywordsAsList}</ul>`;
+                } else {
+                    exp.description = `<ul>${keywordsAsList}</ul>`;
+                }
+                
+                this.saveState();
+                this.closeKeywordModal();
+                
+                // If user is editing that experience, update the textarea
+                const form = document.getElementById('experience-form');
+                if (form.getAttribute('data-edit-id') == experienceId) {
+                    document.getElementById('exp-description').value = exp.description;
+                }
+            },
+
+            // --- 7. EDITOR / FINALIZE LOGIC ---
+
+            showEditorPanel(panelName) {
+                // Hide all panels
+                document.getElementById('panel-templates').classList.add('hidden');
+                document.getElementById('panel-sections').classList.add('hidden');
+                
+                // Deactivate all tools
+                document.getElementById('tool-templates').classList.remove('text-brand-secondary', 'bg-blue-50');
+                document.getElementById('tool-sections').classList.remove('text-brand-secondary', 'bg-blue-50');
+
+                // Show selected panel
+                document.getElementById(`panel-${panelName}`).classList.remove('hidden');
+                // Activate selected tool
+                document.getElementById(`tool-${panelName}`).classList.add('text-brand-secondary', 'bg-blue-50');
+            },
+
+            selectTemplate(templateClass) {
+                this.state.selectedTemplate = templateClass;
+                document.getElementById('resume-preview-content').className = `w-a4 min-h-a4 mx-auto ${templateClass}`;
+                this.renderResume(); // Re-render with new template
+                this.saveState();
+            },
+            
+            /**
+             * Renders the complete resume preview based on state
+             */
+            renderResume() {
+                const { personal, experience, education, skills, summary } = this.state;
+                const resumeEl = document.getElementById('resume-preview-content');
+                
+                // Helper functions for formatting
+                const formatName = () => `${personal.firstName || 'Your'} ${personal.surname || 'Name'}`;
+                const formatContact = () => [
+                    personal.phone,
+                    personal.email,
+                    personal.city,
+                    personal.links.linkedin,
+                    personal.links.website
+                ].filter(Boolean).join(' | ');
+                
+                const formatContactModern = () => `
+                    ${personal.phone ? `<div><i data-feather="phone"></i><span>${personal.phone}</span></div>` : ''}
+                    ${personal.email ? `<div><i data-feather="mail"></i><span>${personal.email}</span></div>` : ''}
+                    ${personal.city ? `<div><i data-feather="map-pin"></i><span>${personal.city}, ${personal.country}</span></div>` : ''}
+                `;
+                
+                const formatLinksModern = () => `
+                    ${personal.links.linkedin ? `<li><i data-feather="linkedin" class="w-4 h-4 mr-2 inline"></i> ${personal.links.linkedin}</li>` : ''}
+                    ${personal.links.website ? `<li><i data-feather="link" class="w-4 h-4 mr-2 inline"></i> ${personal.links.website}</li>` : ''}
+                `;
+
+                const formatExp = (exp) => `
+                    <div class="resume-item mb-6">
+                        <h4 class="resume-item-title">${exp.title || 'Job Title'}</h4>
+                        <div class="resume-item-subtitle">
+                            <span>${exp.employer || 'Employer'} | ${exp.city || 'City'}</span>
+                            <span class="resume-item-date">
+                                ${exp.startYear || 'YYYY'} - ${exp.current ? 'Present' : (exp.endYear || 'YYYY')}
+                            </span>
+                        </div>
+                        <div class="resume-item-description">${exp.description.replace(/\n/g, '<br>')}</div>
+                    </div>
+                `;
+                
+                const formatEdu = (edu) => `
+                    <div class="resume-item mb-4">
+                        <h4 class="resume-item-title">${edu.degree || 'Degree'}</h4>
+                        <div class="resume-item-subtitle">
+                            <span>${edu.school || 'School'} | ${edu.city || 'City'}</span>
+                            <span class="resume-item-date">${edu.endYear || 'YYYY'}</span>
+                        </div>
+                    </div>
+                `;
+
+                // --- TEMPLATE LOGIC ---
+                if (this.state.selectedTemplate === 'template-classic') {
+                    resumeEl.innerHTML = `
+                        <h1 class="resume-name">${formatName()}</h1>
+                        <p class="resume-contact">${formatContact()}</p>
+                        
+                        <h2 class="resume-section-title">Professional Summary</h2>
+                        <p class="resume-summary-content">${summary || 'Your professional summary...'}</p>
+                        
+                        <h2 class="resume-section-title">Work Experience</h2>
+                        ${experience.map(formatExp).join('')}
+                        
+                        <h2 class="resume-section-title">Education</h2>
+                        ${education.map(formatEdu).join('')}
+                        
+                        <h2 class="resume-section-title">Skills</h2>
+                        <p class="resume-skills-list">${skills.join(', ') || 'Your skills...'}</p>
+                    `;
+                }
+                
+                else if (this.state.selectedTemplate === 'template-modern') {
+                    resumeEl.innerHTML = `
+                        <aside class="resume-sidebar">
+                            <h1 class="resume-name">${personal.firstName || 'Your'}</h1>
+                            <h1 class="resume-name" style="margin-top: -10px;">${personal.surname || 'Name'}</h1>
+                            <h2 class="resume-job-title">${experience[0] ? experience[0].title : 'Your Job Title'}</h2>
+                            
+                            <h3 class="resume-section-title">Contact</h3>
+                            <div class="resume-contact">${formatContactModern()}</div>
+                            
+                            <h3 class="resume-section-title">Skills</h3>
+                            <ul class="resume-skills-list list-disc pl-5 text-sm">
+                                ${skills.map(s => `<li>${s}</li>`).join('')}
+                            </ul>
+                            
+                            <h3 class="resume-section-title">Links</h3>
+                            <ul class="resume-links-list text-sm">${formatLinksModern()}</ul>
+                        </aside>
+                        
+                        <main class="resume-main">
+                            <h2 class="resume-section-title-main">Professional Summary</h2>
+                            <p class="resume-summary-content">${summary || 'Your professional summary...'}</p>
+                            
+                            <h2 class="resume-section-title-main">Work Experience</h2>
+                            ${experience.map(formatExp).join('')}
+                            
+                            <h2 class="resume-section-title-main">Education</h2>
+                            ${education.map(formatEdu).join('')}
+                        </main>
+                    `;
+                }
+
+                feather.replace(); // Render icons in the new template
+            },
+
+            // --- 8. DOWNLOAD LOGIC ---
+            
+            showDownloadModal() {
+                document.getElementById('download-modal').classList.remove('hidden');
+            },
+            
+            closeDownloadModal() {
+                document.getElementById('download-modal').classList.add('hidden');
+            },
+            
+            downloadFile() {
+                const format = document.querySelector('input[name="download-format"]:checked').value;
+                const resumeName = document.getElementById('resume-name').value || 'resume';
+                
+                if (format === 'pdf') {
+                    this.downloadPDF(resumeName);
+                } else if (format === 'docx') {
+                    alert('Apologies, .docx export is a premium feature and not implemented in this demo.');
+                } else if (format === 'txt') {
+                    alert('Apologies, .txt export is a premium feature and not implemented in this demo.');
+                }
+                
+                this.closeDownloadModal();
+            },
+            
+            downloadPDF(fileName) {
+                console.log('Generating PDF...');
+                const element = document.getElementById('resume-preview-content');
+                
+                // We need to temporarily remove scaling/shadow for PDF generation
+                // to get the true A4 size.
+                const originalClasses = element.className;
+                element.className = `${this.state.selectedTemplate}`; // Remove mx-auto, shadow, etc.
+                element.style.margin = '0';
+                element.style.boxShadow = 'none';
+
+                const opt = {
+                    margin: 0,
+                    filename: `${fileName}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 3, useCORS: true }, // Higher scale for better quality
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                html2pdf().set(opt).from(element).save().then(() => {
+                    // Restore original classes after PDF generation
+                    console.log('PDF Generated');
+                    element.className = originalClasses;
+                    element.style.margin = ''; // Resets to CSS default
+                    element.style.boxShadow = ''; // Resets to CSS default
+                });
+            },
+            
+            // --- 9. RENDER ALL (for init) ---
+            renderAll() {
+                // Render form fields from loaded state
+                document.getElementById('firstName').value = this.state.personal.firstName;
+                document.getElementById('surname').value = this.state.personal.surname;
+                document.getElementById('city').value = this.state.personal.city;
+                document.getElementById('country').value = this.state.personal.country;
+                document.getElementById('pinCode').value = this.state.personal.pinCode;
+                document.getElementById('phone').value = this.state.personal.phone;
+                document.getElementById('email').value = this.state.personal.email;
+                this.renderLinks();
+                
+                this.renderExperienceList();
+                this.renderEducationList();
+                this.renderSkills();
+                this.renderSummary();
+                
+                // Set the correct view
+                if (this.state.view === 'editor') {
+                    this.showEditor();
+                } else {
+                    this.showWizard(this.state.currentStep);
+                }
+                
+                // Select correct template
+                this.selectTemplate(this.state.selectedTemplate);
+            }
+        };
+
+        // --- Start the app ---
+        window.onload = () => {
+            app.init();
+        };
+
+    </script>
+</body>
+</html>
